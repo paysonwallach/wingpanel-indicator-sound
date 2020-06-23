@@ -86,7 +86,7 @@ public class Sound.Services.ObjectManager : Object {
             unowned Sound.Services.MediaPlayer media_player = (Sound.Services.MediaPlayer) iface;
             has_object = true;
             var device_object = object_manager.get_object (media_player.device);
-            Sound.Services.Device cur_device = (Sound.Services.Device) device_object.get_interface ("org.bluez.Device1");
+            Sound.Services.BluezDevice cur_device = (Sound.Services.BluezDevice) device_object.get_interface ("org.bluez.Device1");
             media_player_status = media_player.track.lookup ("Title").get_string ();
             media_player_added (media_player, cur_device.name, cur_device.icon);
 
