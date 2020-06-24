@@ -24,8 +24,13 @@ public class Sound.Indicator : Wingpanel.Indicator {
     private Widgets.Scale volume_scale;
     private Widgets.Scale mic_scale;
     private Wingpanel.Widgets.Separator mic_separator;
+    private Gtk.ListBox input_list;
+    private Gtk.ListBox output_list;
+    private Gtk.Revealer input_list_revealer;
+    private Gtk.Revealer output_list_revealer;
     private Notify.Notification? notification;
     private Services.VolumeControlPulse volume_control;
+    private unowned Sound.Services.PulseAudioManager pam;
 
     private bool open = false;
     private bool mute_blocks_sound = false;
@@ -92,6 +97,9 @@ public class Sound.Indicator : Wingpanel.Indicator {
 
         display_widget.volume_scroll_event.connect_after (on_volume_icon_scroll_event);
         display_widget.mic_scroll_event.connect_after (on_mic_icon_scroll_event);
+
+        pam = Sound.Services.PulseAudioManager.get_default ();
+        pam.new_device.connect (add_device);
 
         volume_scale = new Widgets.Scale ("audio-volume-high-symbolic", true, 0.0, max_volume, 0.01);
         mic_scale = new Widgets.Scale ("audio-input-microphone-symbolic", true, 0.0, 1.0, 0.01);
@@ -255,6 +263,8 @@ public class Sound.Indicator : Wingpanel.Indicator {
 
 
     public override Gtk.Widget? get_widget () {
+        pam.start ();
+
         if (main_grid == null) {
             int position = 0;
             main_grid = new Gtk.Grid ();
@@ -334,7 +344,6 @@ public class Sound.Indicator : Wingpanel.Indicator {
                 return true;
             });
 
-
             main_grid.attach (mic_scale, 0, position++, 1, 1);
 
             mic_separator = new Wingpanel.Widgets.Separator ();
@@ -343,16 +352,133 @@ public class Sound.Indicator : Wingpanel.Indicator {
 
             main_grid.attach (mic_separator, 0, position++, 1, 1);
 
+            output_list_revealer = new Gtk.Revealer ();
+            output_list = new Gtk.ListBox ();
+
+            var output_list_menuitem = build_device_list_menuitem (
+                output_list_revealer, output_list, DeviceListType.OUTPUT,
+                "Output: ", "Available Sound Output Devices:"
+            );
+
+            main_grid.attach (output_list_menuitem, 0, position++, 1, 1);
+            main_grid.attach (output_list_revealer, 0, position++, 1, 1);
+
+            var input_list_menuitem_container = new Gtk.Grid ();
+            var input_list_menuitem_revealer = new Gtk.Revealer ();
+
+            input_list_revealer = new Gtk.Revealer ();
+            input_list = new Gtk.ListBox ();
+
+            var input_list_menuitem = build_device_list_menuitem (
+                input_list_revealer, input_list, DeviceListType.INPUT,
+                "Input: ", "Available Sound Input Devices:"
+            );
+
+            input_list_menuitem_container.attach (input_list_menuitem, 0, 0);
+            input_list_menuitem_container.attach (input_list_revealer, 0, 1);
+
+            input_list_menuitem_revealer.add (input_list_menuitem_container);
+            input_list_menuitem_revealer.set_reveal_child (false);
+
+            display_widget.bind_property (
+                "show-mic",
+                input_list_menuitem_revealer,
+                "reveal-child",
+                GLib.BindingFlags.BIDIRECTIONAL | GLib.BindingFlags.SYNC_CREATE
+            );
+
+            main_grid.attach (input_list_menuitem_revealer, 0, position++, 1, 1);
+
             var settings_button = new Gtk.ModelButton ();
             settings_button.text = _("Sound Settings…");
             settings_button.clicked.connect (() => {
                 show_settings ();
             });
 
+            var settings_separator = new Wingpanel.Widgets.Separator ();
+
+            main_grid.attach (settings_separator, 0, position++, 1, 1);
             main_grid.attach (settings_button, 0, position++, 1, 1);
         }
 
         return main_grid;
+    }
+
+    enum DeviceListType {
+        INPUT,
+        OUTPUT
+    }
+
+    private Wingpanel.Widgets.Container build_device_list_menuitem (
+        Gtk.Revealer device_list_revealer,
+        Gtk.ListBox list, DeviceListType device_list_type,
+        string label, string list_label
+    ) {
+        var device_list_menuitem = new Wingpanel.Widgets.Container ();
+        var device_list_container = device_list_menuitem.get_content_widget ();
+        var device_list_label_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
+        var device_list_label = new Gtk.Label (label);
+        var default_device_label = new Gtk.Label (
+            (device_list_type == DeviceListType.INPUT ?
+                pam.default_input : pam.default_output).display_name);
+
+        device_list_label_box.pack_start (device_list_label, false);
+        device_list_label_box.pack_start (default_device_label, false);
+
+        device_list_label.get_style_context ()
+            .add_class (Granite.STYLE_CLASS_H4_LABEL);
+
+        device_list_revealer.set_reveal_child (false);
+
+        device_list_menuitem.clicked.connect (() => {
+            device_list_revealer.set_reveal_child (!device_list_revealer.reveal_child);
+
+            if (device_list_revealer.reveal_child) {
+                device_list_label.set_label (list_label);
+                default_device_label.set_label ("");
+            } else {
+                device_list_label.set_label (label);
+                default_device_label.set_label (
+                    (device_list_type == DeviceListType.INPUT ?
+                        pam.default_input : pam.default_output).display_name);
+            }
+        });
+
+        list.activate_on_single_click = true;
+        list.row_activated.connect ((menuitem) => {
+            pam.set_default_device.begin (((Sound.Widgets.DeviceMenuItem) menuitem).device);
+        });
+
+        var scrolled_box = new Gtk.ScrolledWindow (null, null);
+
+        scrolled_box.hscrollbar_policy = Gtk.PolicyType.NEVER;
+        scrolled_box.max_content_height = 512;
+        scrolled_box.propagate_natural_height = true;
+        scrolled_box.add (list);
+
+        device_list_revealer.add (scrolled_box);
+
+        device_list_container.margin_start = 6;
+        device_list_container.margin_end = 6;
+        device_list_container.attach (device_list_label_box, 0, 0);
+
+        return device_list_menuitem;
+    }
+
+    private void add_device (Sound.Services.Device device) {
+        var device_row = new Sound.Widgets.DeviceMenuItem (device);
+
+        Gtk.ListBox devices_list = device.input ? input_list : output_list;
+        Gtk.ListBoxRow? row = devices_list.get_row_at_index (0);
+
+        if (row != null)
+            device_row.link_to_row ((Sound.Widgets.DeviceMenuItem) row);
+
+        devices_list.add (device_row);
+        device_row.set_as_default.connect (() => {
+            pam.set_default_device.begin (device);
+        });
+        device_row.show_all ();
     }
 
     /* Handles both SMOOTH and non-SMOOTH events.
@@ -463,6 +589,8 @@ public class Sound.Indicator : Wingpanel.Indicator {
     public override void closed () {
         open = false;
         notification = null;
+        input_list_revealer.set_reveal_child (false);
+        output_list_revealer.set_reveal_child (false);
     }
 
     private void show_settings () {

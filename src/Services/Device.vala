@@ -1,43 +1,57 @@
-/*
- * Copyright (c) 2015-2017 elementary LLC. (http://launchpad.net/wingpanel-indicator-sound)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; If not, see <http://www.gnu.org/licenses/>.
- *
- */
+public class Sound.Services.Device : Object {
+    public class Port {
+        public string name;
+        public string description;
+        public uint32 priority;
+    }
 
-[DBus (name = "org.bluez.Device1")]
-public interface Sound.Services.Device : Object {
-    public abstract void cancel_pairing () throws GLib.Error;
-    public abstract void connect () throws GLib.Error;
-    public abstract void connect_profile (string UUID) throws GLib.Error; // vala-lint=naming-convention
-    public abstract void disconnect () throws GLib.Error;
-    public abstract void disconnect_profile (string UUID) throws GLib.Error; // vala-lint=naming-convention
-    public abstract void pair () throws GLib.Error;
+    public signal void removed ();
 
-    public abstract string[] UUIDs { owned get; }
-    public abstract bool blocked { get; set; }
-    public abstract bool connected { get; }
-    public abstract bool legacy_pairing { get; }
-    public abstract bool paired { get; }
-    public abstract bool trusted { get; set; }
-    public abstract int16 RSSI { get; }
-    public abstract ObjectPath adapter { owned get; }
-    public abstract string address { owned get; }
-    public abstract string alias { owned get; set; }
-    public abstract string icon { owned get; }
-    public abstract string modalias { owned get; }
-    public abstract string name { owned get; }
-    public abstract uint16 appearance { get; }
-    public abstract uint32 @class { get; }
+    public bool input { get; set; default = true; }
+    public string id { get; construct; }
+    public string card_name { get; set; }
+    public uint32 card_index { get; construct; }
+    public string port_name { get; construct; }
+    public string display_name { get; set; }
+    public string form_factor { get; set; }
+    public Gee.ArrayList<string> profiles { get; set; }
+    public string card_active_profile_name { get; set; }
+
+    public string? sink_name { get; set; }
+    public int sink_index { get; set; }
+    public string? card_sink_name { get; set; }
+    public string? card_sink_port_name { get; set; }
+    public int card_sink_index { get; set; }
+
+    public string? source_name { get; set; }
+    public int source_index { get; set; }
+    public string? card_source_name { get; set; }
+    public string? card_source_port_name { get; set; }
+    public int card_source_index { get; set; }
+
+    public bool is_default { get; set; default = false; }
+    public bool is_muted { get; set; default = false; }
+    public PulseAudio.CVolume cvolume { get; set; }
+    public double volume { get; set; default = 0; }
+    public float balance { get; set; default = 0; }
+    public PulseAudio.ChannelMap channel_map { get; set; }
+    public Gee.LinkedList<PulseAudio.Operation> volume_operations;
+
+    public Device (string id, uint32 card_index, string port_name) {
+        Object (id: id, card_index: card_index, port_name: port_name);
+    }
+
+    construct {
+        volume_operations = new Gee.LinkedList<PulseAudio.Operation> ();
+        profiles = new Gee.ArrayList<string> ();
+    }
+
+    public string? get_matching_profile (Device other_device) {
+        foreach (var profile in profiles) {
+            if (other_device.profiles.contains (profile))
+                return profile;
+        }
+
+        return null;
+    }
 }
