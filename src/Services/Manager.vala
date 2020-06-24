@@ -62,8 +62,8 @@ public class Sound.Services.ObjectManager : Object {
     }
 
     //TODO: Do not rely on this when it is possible to do it natively in Vala
-    [CCode (cname="sound_services_device_proxy_get_type")]
-    extern static GLib.Type get_device_proxy_type ();
+    [CCode (cname="sound_services_bluez_device_proxy_get_type")]
+    extern static GLib.Type get_bluez_device_proxy_type ();
     [CCode (cname="sound_services_media_player_proxy_get_type")]
     extern static GLib.Type get_media_player_proxy_type ();
 
@@ -73,7 +73,7 @@ public class Sound.Services.ObjectManager : Object {
 
         switch (interface_name) {
             case "org.bluez.Device1":
-                return get_device_proxy_type ();
+                return get_bluez_device_proxy_type ();
             case "org.bluez.MediaPlayer1":
                 return get_media_player_proxy_type ();
             default:
