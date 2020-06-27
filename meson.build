@@ -37,7 +37,7 @@ shared_module(
     'src/Widgets/MprisGui.vala',
     'src/Widgets/MprisWidget.vala',
     'src/Services/MprisClient.vala',
-    'src/Services/Volume-control.vala',
+    'src/Services/VolumeControl.vala',
     'src/Services/Manager.vala',
     'src/Services/BluezDevice.vala',
     'src/Services/MediaPlayer.vala',
