@@ -31,6 +31,7 @@ wingpanel_indicatorsdir = wingpanel_dep.get_pkgconfig_variable('indicatorsdir', 
 shared_module(
     meson.project_name(),
     'src/Indicator.vala',
+    'src/Widgets/DeviceListMenuItem.vala',
     'src/Widgets/DeviceMenuItem.vala',
     'src/Widgets/DisplayWidget.vala',
     'src/Widgets/Scale.vala',

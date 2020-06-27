@@ -15,6 +15,12 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+
+public enum Sound.DeviceListType {
+    INPUT,
+    OUTPUT
+}
+
 public class Sound.Indicator : Wingpanel.Indicator {
     public bool natural_scroll_touchpad { get; set; }
     public bool natural_scroll_mouse { get; set; }
@@ -26,6 +32,8 @@ public class Sound.Indicator : Wingpanel.Indicator {
     private Wingpanel.Widgets.Separator mic_separator;
     private Gtk.ListBox input_list;
     private Gtk.ListBox output_list;
+    private Sound.Widgets.DeviceListMenuItem input_list_menuitem;
+    private Sound.Widgets.DeviceListMenuItem output_list_menuitem;
     private Gtk.Revealer input_list_revealer;
     private Gtk.Revealer output_list_revealer;
     private Notify.Notification? notification;
@@ -261,7 +269,6 @@ public class Sound.Indicator : Wingpanel.Indicator {
         return display_widget;
     }
 
-
     public override Gtk.Widget? get_widget () {
         pam.start ();
 
@@ -355,9 +362,9 @@ public class Sound.Indicator : Wingpanel.Indicator {
             output_list_revealer = new Gtk.Revealer ();
             output_list = new Gtk.ListBox ();
 
-            var output_list_menuitem = build_device_list_menuitem (
+            output_list_menuitem = new Sound.Widgets.DeviceListMenuItem (
                 output_list_revealer, output_list, DeviceListType.OUTPUT,
-                "Output: ", "Available Sound Output Devices:"
+                "Output: ", "Available Sound Output Devices:", pam
             );
 
             main_grid.attach (output_list_menuitem, 0, position++, 1, 1);
@@ -369,9 +376,9 @@ public class Sound.Indicator : Wingpanel.Indicator {
             input_list_revealer = new Gtk.Revealer ();
             input_list = new Gtk.ListBox ();
 
-            var input_list_menuitem = build_device_list_menuitem (
+            input_list_menuitem = new Sound.Widgets.DeviceListMenuItem (
                 input_list_revealer, input_list, DeviceListType.INPUT,
-                "Input: ", "Available Sound Input Devices:"
+                "Input: ", "Available Sound Input Devices:", pam
             );
 
             input_list_menuitem_container.attach (input_list_menuitem, 0, 0);
@@ -402,67 +409,6 @@ public class Sound.Indicator : Wingpanel.Indicator {
         }
 
         return main_grid;
-    }
-
-    enum DeviceListType {
-        INPUT,
-        OUTPUT
-    }
-
-    private Wingpanel.Widgets.Container build_device_list_menuitem (
-        Gtk.Revealer device_list_revealer,
-        Gtk.ListBox list, DeviceListType device_list_type,
-        string label, string list_label
-    ) {
-        var device_list_menuitem = new Wingpanel.Widgets.Container ();
-        var device_list_container = device_list_menuitem.get_content_widget ();
-        var device_list_label_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
-        var device_list_label = new Gtk.Label (label);
-        var default_device_label = new Gtk.Label (
-            (device_list_type == DeviceListType.INPUT ?
-                pam.default_input : pam.default_output).display_name);
-
-        device_list_label_box.pack_start (device_list_label, false);
-        device_list_label_box.pack_start (default_device_label, false);
-
-        device_list_label.get_style_context ()
-            .add_class (Granite.STYLE_CLASS_H4_LABEL);
-
-        device_list_revealer.set_reveal_child (false);
-
-        device_list_menuitem.clicked.connect (() => {
-            device_list_revealer.set_reveal_child (!device_list_revealer.reveal_child);
-
-            if (device_list_revealer.reveal_child) {
-                device_list_label.set_label (list_label);
-                default_device_label.set_label ("");
-            } else {
-                device_list_label.set_label (label);
-                default_device_label.set_label (
-                    (device_list_type == DeviceListType.INPUT ?
-                        pam.default_input : pam.default_output).display_name);
-            }
-        });
-
-        list.activate_on_single_click = true;
-        list.row_activated.connect ((menuitem) => {
-            pam.set_default_device.begin (((Sound.Widgets.DeviceMenuItem) menuitem).device);
-        });
-
-        var scrolled_box = new Gtk.ScrolledWindow (null, null);
-
-        scrolled_box.hscrollbar_policy = Gtk.PolicyType.NEVER;
-        scrolled_box.max_content_height = 512;
-        scrolled_box.propagate_natural_height = true;
-        scrolled_box.add (list);
-
-        device_list_revealer.add (scrolled_box);
-
-        device_list_container.margin_start = 6;
-        device_list_container.margin_end = 6;
-        device_list_container.attach (device_list_label_box, 0, 0);
-
-        return device_list_menuitem;
     }
 
     private void add_device (Sound.Services.Device device) {
@@ -589,8 +535,11 @@ public class Sound.Indicator : Wingpanel.Indicator {
     public override void closed () {
         open = false;
         notification = null;
-        input_list_revealer.set_reveal_child (false);
-        output_list_revealer.set_reveal_child (false);
+
+        if (input_list_menuitem.is_visible ())
+            input_list_menuitem.toggle_visible ();
+        if (output_list_menuitem.is_visible ())
+            output_list_menuitem.toggle_visible ();
     }
 
     private void show_settings () {
