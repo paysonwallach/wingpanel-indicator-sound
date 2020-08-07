@@ -27,6 +27,7 @@ public class Sound.Indicator : Wingpanel.Indicator {
 
     private DisplayWidget display_widget;
     private Gtk.Grid main_grid;
+    private Widgets.MprisWidget mpris;
     private Widgets.Scale volume_scale;
     private Widgets.Scale mic_scale;
     private Wingpanel.Widgets.Separator mic_separator;
@@ -56,9 +57,7 @@ public class Sound.Indicator : Wingpanel.Indicator {
     public static GLib.Settings settings;
 
     public Indicator () {
-        Object (code_name: Wingpanel.Indicator.SOUND,
-                display_name: _("Indicator Sound"),
-                description: _("The sound indicator"));
+        Object (code_name: Wingpanel.Indicator.SOUND);
     }
 
     static construct {
@@ -276,7 +275,7 @@ public class Sound.Indicator : Wingpanel.Indicator {
             int position = 0;
             main_grid = new Gtk.Grid ();
 
-            var mpris = new Widgets.MprisWidget ();
+            mpris = new Widgets.MprisWidget ();
 
             mpris.close.connect (() => {
                 close ();
@@ -521,6 +520,9 @@ public class Sound.Indicator : Wingpanel.Indicator {
 
     public override void opened () {
         open = true;
+
+        mpris.update_default_player ();
+
         if (notification != null) {
             try {
                 notification.close ();
