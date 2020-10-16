@@ -33,6 +33,15 @@ public class Sound.Widgets.DeviceListMenuItem : Wingpanel.Widgets.Container {
 
         device_list_revealer.set_reveal_child (false);
 
+        ulong default_device_did_change = 0U;
+        default_device_did_change = pam.notify[device_list_type == DeviceListType.INPUT ?
+                "default-input" : "default-output"].connect ((s, p) => {
+            default_device_label.set_label (
+                (device_list_type == DeviceListType.INPUT ?
+                    pam.default_input : pam.default_output).display_name);
+            pam.disconnect (default_device_did_change);
+        });
+
         this.clicked.connect (() => { this.toggle_visible (); });
 
         list.activate_on_single_click = true;
