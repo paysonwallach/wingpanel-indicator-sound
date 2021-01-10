@@ -38,7 +38,7 @@ public interface Sound.Services.MediaPlayer : Object {
     public abstract string repeat { owned get; set; }
     public abstract string shuffle { owned get; set; }
     public abstract string scan { owned get; set; }
-    public abstract HashTable<string,Variant> track { owned get; }
+    public abstract HashTable<string, Variant> track { owned get; }
     public abstract GLib.ObjectPath device { owned get; }
     public abstract bool browsable { get; }
     public abstract bool searchable { get; }

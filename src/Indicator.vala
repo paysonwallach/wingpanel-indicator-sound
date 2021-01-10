@@ -1,19 +1,19 @@
 /*
-* Copyright 2015-2020 elementary, Inc. (https://elementary.io)
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public
-* License as published by the Free Software Foundation; either
-* version 2 of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright 2015-2020 elementary, Inc. (https://elementary.io)
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 
 public enum Sound.DeviceListType {
@@ -27,7 +27,7 @@ public class Sound.Indicator : Wingpanel.Indicator {
 
     private DisplayWidget display_widget;
     private Gtk.Grid main_grid;
-    private Widgets.MprisWidget mpris;
+    private Widgets.PlayerList mpris;
     private Widgets.Scale volume_scale;
     private Widgets.Scale mic_scale;
     private Wingpanel.Widgets.Separator mic_separator;
@@ -52,7 +52,7 @@ public class Sound.Indicator : Wingpanel.Indicator {
 
     /* Smooth scrolling support */
     private double total_x_delta = 0;
-    private double total_y_delta= 0;
+    private double total_y_delta = 0;
 
     public static GLib.Settings settings;
 
@@ -108,8 +108,12 @@ public class Sound.Indicator : Wingpanel.Indicator {
         pam = Sound.Services.PulseAudioManager.get_default ();
         pam.new_device.connect (add_device);
 
-        volume_scale = new Widgets.Scale ("audio-volume-high-symbolic", true, 0.0, max_volume, 0.01);
-        mic_scale = new Widgets.Scale ("audio-input-microphone-symbolic", true, 0.0, 1.0, 0.01);
+        volume_scale = new Widgets.Scale ("audio-volume-high-symbolic", true, 0.0, max_volume, 0.01) {
+            margin_start = 6
+        };
+        mic_scale = new Widgets.Scale ("audio-input-microphone-symbolic", true, 0.0, 1.0, 0.01) {
+            margin_start = 6
+        };
 
         ca_context = CanberraGtk.context_get ();
         ca_context.change_props (Canberra.PROP_APPLICATION_NAME, "indicator-sound",
@@ -133,7 +137,7 @@ public class Sound.Indicator : Wingpanel.Indicator {
     private void set_max_volume () {
         var max = settings.get_double ("max-volume") / 100;
         // we do not allow more than 11db over the NORM volume
-        var cap_volume = (double)PulseAudio.Volume.sw_from_dB (11.0) / PulseAudio.Volume.NORM;
+        var cap_volume = (double) PulseAudio.Volume.sw_from_dB (11.0) / PulseAudio.Volume.NORM;
         if (max > cap_volume) {
             max = cap_volume;
         }
@@ -273,9 +277,9 @@ public class Sound.Indicator : Wingpanel.Indicator {
 
         if (main_grid == null) {
             int position = 0;
-            main_grid = new Gtk.Grid ();
 
-            mpris = new Widgets.MprisWidget ();
+            main_grid = new Gtk.Grid ();
+            mpris = new Widgets.PlayerList ();
 
             mpris.close.connect (() => {
                 close ();
@@ -284,7 +288,6 @@ public class Sound.Indicator : Wingpanel.Indicator {
                 if (!volume_control.headphone_plugged)
                     mpris.pause_all ();
             });
-
             main_grid.attach (mpris, 0, position++, 1, 1);
 
             if (mpris.get_children ().length () > 0) {
@@ -293,8 +296,24 @@ public class Sound.Indicator : Wingpanel.Indicator {
                 main_grid.attach (first_separator, 0, position++, 1, 1);
             }
 
-            volume_scale.margin_start = 6;
             volume_scale.active = !volume_control.mute;
+            volume_scale.scale_widget.set_value (volume_control.volume.volume);
+            volume_scale.icon = get_volume_icon (
+                volume_scale.scale_widget.get_value ());
+
+            volume_scale.scale_widget.button_release_event.connect ((e) => {
+                notify_change (false);
+                return false;
+            });
+
+            volume_scale.scroll_event.connect_after ((e) => {
+                double dir = 0.0;
+                if (handle_scroll_event (e, out dir)) {
+                    handle_change (dir, false);
+                }
+                return true;
+            });
+
             volume_scale.notify["active"].connect (on_volume_switch_change);
 
             volume_scale.scale_widget.value_changed.connect (() => {
@@ -303,33 +322,24 @@ public class Sound.Indicator : Wingpanel.Indicator {
                 vol.volume = v.clamp (0.0, max_volume);
                 vol.reason = Services.VolumeControl.VolumeReasons.USER_KEYPRESS;
                 volume_control.volume = vol;
-                volume_scale.icon = get_volume_icon (volume_scale.scale_widget.get_value ());
+                volume_scale.icon = get_volume_icon (
+                    volume_scale.scale_widget.get_value ());
             });
 
-            volume_scale.scale_widget.set_value (volume_control.volume.volume);
-            volume_scale.scale_widget.button_release_event.connect ((e) => {
-                notify_change (false);
-                return false;
-            });
-
-
-            volume_scale.scroll_event.connect_after ((e) => {
-                double dir = 0.0;
-                if (handle_scroll_event (e, out dir)) {
-                    handle_change (dir, false);
-                }
-
-                return true;
-            });
-
-            volume_scale.icon = get_volume_icon (volume_scale.scale_widget.get_value ());
             set_max_volume ();
 
-            main_grid.attach (volume_scale, 0, position++, 1, 1);
-            main_grid.attach (new Wingpanel.Widgets.Separator (), 0, position++, 1, 1);
-
-            mic_scale.margin_start = 6;
             mic_scale.active = !volume_control.micMute;
+
+            mic_separator = new Wingpanel.Widgets.Separator ();
+
+            update_mic_visibility ();
+
+            var settings_button = new Gtk.ModelButton ();
+            settings_button.text = _("Sound Settings…");
+            settings_button.clicked.connect (() => {
+                show_settings ();
+            });
+
             mic_scale.notify["active"].connect (on_mic_switch_change);
 
             mic_scale.scale_widget.value_changed.connect (() => {
@@ -352,11 +362,11 @@ public class Sound.Indicator : Wingpanel.Indicator {
 
             main_grid.attach (mic_scale, 0, position++, 1, 1);
 
-            mic_separator = new Wingpanel.Widgets.Separator ();
-
-            update_mic_visibility ();
-
-            main_grid.attach (mic_separator, 0, position++, 1, 1);
+            volume_control.notify["headphone-plugged"].connect (() => {
+                if (!volume_control.headphone_plugged) {
+                    mpris.pause_all ();
+                }
+            });
 
             output_list_revealer = new Gtk.Revealer ();
             output_list = new Gtk.ListBox ();
@@ -364,7 +374,7 @@ public class Sound.Indicator : Wingpanel.Indicator {
             output_list_menuitem = new Sound.Widgets.DeviceListMenuItem (
                 output_list_revealer, output_list, DeviceListType.OUTPUT,
                 "Output: ", "Available Sound Output Devices:", pam
-            );
+                );
 
             main_grid.attach (output_list_menuitem, 0, position++, 1, 1);
             main_grid.attach (output_list_revealer, 0, position++, 1, 1);
@@ -378,7 +388,7 @@ public class Sound.Indicator : Wingpanel.Indicator {
             input_list_menuitem = new Sound.Widgets.DeviceListMenuItem (
                 input_list_revealer, input_list, DeviceListType.INPUT,
                 "Input: ", "Available Sound Input Devices:", pam
-            );
+                );
 
             input_list_menuitem_container.attach (input_list_menuitem, 0, 0);
             input_list_menuitem_container.attach (input_list_revealer, 0, 1);
@@ -391,15 +401,9 @@ public class Sound.Indicator : Wingpanel.Indicator {
                 input_list_menuitem_revealer,
                 "reveal-child",
                 GLib.BindingFlags.BIDIRECTIONAL | GLib.BindingFlags.SYNC_CREATE
-            );
+                );
 
             main_grid.attach (input_list_menuitem_revealer, 0, position++, 1, 1);
-
-            var settings_button = new Gtk.ModelButton ();
-            settings_button.text = _("Sound Settings…");
-            settings_button.clicked.connect (() => {
-                show_settings ();
-            });
 
             var settings_separator = new Wingpanel.Widgets.Separator ();
 
@@ -447,32 +451,32 @@ public class Sound.Indicator : Wingpanel.Indicator {
         }
 
         switch (e.direction) {
-            case Gdk.ScrollDirection.SMOOTH:
-                    var abs_x = double.max (e.delta_x.abs (), 0.0001);
-                    var abs_y = double.max (e.delta_y.abs (), 0.0001);
+        case Gdk.ScrollDirection.SMOOTH:
+            var abs_x = double.max (e.delta_x.abs (), 0.0001);
+            var abs_y = double.max (e.delta_y.abs (), 0.0001);
 
-                    if (abs_y / abs_x > 2.0) {
-                        total_y_delta += e.delta_y;
-                    } else if (abs_x / abs_y > 2.0) {
-                        total_x_delta += e.delta_x;
-                    }
+            if (abs_y / abs_x > 2.0) {
+                total_y_delta += e.delta_y;
+            } else if (abs_x / abs_y > 2.0) {
+                total_x_delta += e.delta_x;
+            }
 
-                break;
+            break;
 
-            case Gdk.ScrollDirection.UP:
-                total_y_delta = -1.0;
-                break;
-            case Gdk.ScrollDirection.DOWN:
-                total_y_delta = 1.0;
-                break;
-            case Gdk.ScrollDirection.LEFT:
-                total_x_delta = -1.0;
-                break;
-            case Gdk.ScrollDirection.RIGHT:
-                total_x_delta = 1.0;
-                break;
-            default:
-                break;
+        case Gdk.ScrollDirection.UP:
+            total_y_delta = -1.0;
+            break;
+        case Gdk.ScrollDirection.DOWN:
+            total_y_delta = 1.0;
+            break;
+        case Gdk.ScrollDirection.LEFT:
+            total_x_delta = -1.0;
+            break;
+        case Gdk.ScrollDirection.RIGHT:
+            total_x_delta = 1.0;
+            break;
+        default:
+            break;
         }
 
         if (total_y_delta.abs () > 0.5) {
@@ -602,9 +606,9 @@ public class Sound.Indicator : Wingpanel.Indicator {
 
             int32 volume;
             if (is_mic) {
-                volume = (int32)Math.round (volume_control.mic_volume / max_volume * 100.0);
+                volume = (int32) Math.round (volume_control.mic_volume / max_volume * 100.0);
             } else {
-                volume = (int32)Math.round (volume_control.volume.volume / max_volume * 100.0);
+                volume = (int32) Math.round (volume_control.volume.volume / max_volume * 100.0);
             }
 
             notification.set_hint ("value", new Variant.int32 (volume));
@@ -622,6 +626,7 @@ public class Sound.Indicator : Wingpanel.Indicator {
 
         return true;
     }
+
 }
 
 public Wingpanel.Indicator? get_indicator (Module module, Wingpanel.IndicatorManager.ServerType server_type) {

@@ -1,7 +1,7 @@
 project(
     'sound',
     'vala', 'c',
-    version: '2.1.7'
+    version: '2.1.8'
 )
 
 gettext_name = meson.project_name() + '-indicator'
@@ -35,8 +35,8 @@ shared_module(
     'src/Widgets/DeviceMenuItem.vala',
     'src/Widgets/DisplayWidget.vala',
     'src/Widgets/Scale.vala',
-    'src/Widgets/MprisGui.vala',
-    'src/Widgets/MprisWidget.vala',
+    'src/Widgets/PlayerRow.vala',
+    'src/Widgets/PlayerList.vala',
     'src/Services/MprisClient.vala',
     'src/Services/VolumeControl.vala',
     'src/Services/Manager.vala',

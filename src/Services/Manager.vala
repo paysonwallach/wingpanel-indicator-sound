@@ -23,13 +23,13 @@ public class Sound.Services.ObjectManager : Object {
     public signal void media_player_status_changed (string status, string title, string album);
 
     public bool has_object { get; private set; default = false; }
-    public string media_player_status { get; private set; default = "stopped";}
-    public string current_track_title { get; private set; default = "Not playing";}
-    public string current_track_artist { get; private set;}
+    public string media_player_status { get; private set; default = "stopped"; }
+    public string current_track_title { get; private set; default = "Not playing"; }
+    public string current_track_artist { get; private set; }
 
     private GLib.DBusObjectManagerClient object_manager;
 
-    public ObjectManager () { }
+    public ObjectManager () {}
 
     construct {
         create_manager.begin ();
@@ -62,9 +62,9 @@ public class Sound.Services.ObjectManager : Object {
     }
 
     //TODO: Do not rely on this when it is possible to do it natively in Vala
-    [CCode (cname="sound_services_bluez_device_proxy_get_type")]
+    [CCode (cname = "sound_services_bluez_device_proxy_get_type")]
     extern static GLib.Type get_bluez_device_proxy_type ();
-    [CCode (cname="sound_services_media_player_proxy_get_type")]
+    [CCode (cname = "sound_services_media_player_proxy_get_type")]
     extern static GLib.Type get_media_player_proxy_type ();
 
     private GLib.Type object_manager_proxy_get_type (DBusObjectManagerClient manager, string object_path, string? interface_name) {
@@ -131,4 +131,5 @@ public class Sound.Services.ObjectManager : Object {
 
         return (owned) players;
     }
+
 }
