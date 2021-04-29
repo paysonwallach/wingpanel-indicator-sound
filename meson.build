@@ -12,12 +12,8 @@ prefix = get_option('prefix')
 datadir = join_paths(prefix, get_option('datadir'))
 libdir = join_paths(prefix, get_option('libdir'))
 
-add_global_arguments('-DGETTEXT_PACKAGE="@0@"'.format(gettext_name), language:'c')
-
-add_project_arguments(
-    ['--vapidir', join_paths(meson.current_source_dir(), 'vapi')],
-    language: 'vala'
-)
+wingpanel_dep = dependency('wingpanel-2.0', version: '>=2.1.0')
+wingpanel_indicatorsdir = wingpanel_dep.get_pkgconfig_variable('indicatorsdir', define_variable: ['libdir', libdir]
 
 asresources = gnome.compile_resources(
     'as-resources', 'data/mask.gresource.xml',
@@ -25,8 +21,17 @@ asresources = gnome.compile_resources(
     c_name: 'as'
 )
 
-wingpanel_dep = dependency('wingpanel-2.0', version: '>=2.1.0')
-wingpanel_indicatorsdir = wingpanel_dep.get_pkgconfig_variable('indicatorsdir', define_variable: ['libdir', libdir])
+add_project_arguments([
+    '-DG_LOG_DOMAIN="@0@"'.format(meson.project_name())
+    '-DGETTEXT_PACKAGE="@0@"'.format(gettext_name),
+  ],
+  language:'c'
+)
+
+add_project_arguments(
+    ['--vapidir', join_paths(meson.current_source_dir(), 'vapi')],
+    language: 'vala'
+)
 
 shared_module(
     meson.project_name(),
