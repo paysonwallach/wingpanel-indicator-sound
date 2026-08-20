@@ -16,20 +16,26 @@
 */
 
 public class Sound.Indicator : Wingpanel.Indicator {
+    public bool is_in_session { get; construct; }
     public bool natural_scroll_touchpad { get; set; }
     public bool natural_scroll_mouse { get; set; }
     public int volume_step { get; set; }
 
     private DisplayWidget display_widget;
     private Gtk.Box main_box;
+    private Gtk.Adjustment volume_adjustment;
+    private Gtk.Adjustment mic_adjustment;
     private Widgets.PlayerList mpris;
     private Widgets.Scale volume_scale;
     private Widgets.Scale mic_scale;
     private Widgets.DeviceManagerWidget output_device_manager;
     private Widgets.DeviceManagerWidget input_device_manager;
-    private Gtk.Separator mic_separator;
     private Notify.Notification? notification;
     private Services.VolumeControlPulse volume_control;
+
+    private ShellKeyGrabber? key_grabber = null;
+    private ulong key_grabber_id = 0;
+    private Gee.HashMultiMap<string, uint> saved_action_ids = new Gee.HashMultiMap<string, uint> ();
 
     private bool open = false;
     private bool mute_blocks_sound = false;
@@ -45,8 +51,11 @@ public class Sound.Indicator : Wingpanel.Indicator {
 
     public static GLib.Settings settings;
 
-    public Indicator () {
-        Object (code_name: Wingpanel.Indicator.SOUND);
+    public Indicator (bool is_in_session) {
+        Object (
+            code_name: Wingpanel.Indicator.SOUND,
+            is_in_session: is_in_session
+        );
     }
 
     static construct {
@@ -66,6 +75,19 @@ public class Sound.Indicator : Wingpanel.Indicator {
 
         visible = true;
 
+        // Prevent a race that skips automatic resource loading
+        // https://github.com/elementary/wingpanel-indicator-bluetooth/issues/203
+        Gtk.IconTheme.get_for_display (Gdk.Display.get_default ()).add_resource_path ("/org/elementary/wingpanel/icons");
+
+        var provider = new Gtk.CssProvider ();
+        provider.load_from_resource ("io/elementary/wingpanel/sound/indicator.css");
+
+        Gtk.StyleContext.add_provider_for_display (
+            Gdk.Display.get_default (),
+            provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        );
+
         display_widget = new DisplayWidget ();
 
         volume_control = new Services.VolumeControlPulse (); /* sub-class of Services.VolumeControl */
@@ -74,53 +96,150 @@ public class Sound.Indicator : Wingpanel.Indicator {
         volume_control.notify["mute"].connect (on_mute_change);
         volume_control.notify["micMute"].connect (on_mic_mute_change);
         volume_control.notify["is-playing"].connect (on_is_playing_change);
-        volume_control.notify["is-listening"].connect (update_mic_visibility);
 
         // Tooltip-related
         volume_control.notify["volume"].connect (update_tooltip);
         volume_control.notify["mute"].connect (update_tooltip);
 
         output_device_manager = new Widgets.DeviceManagerWidget () {
-            is_input_manager = false
+            direction = OUTPUT
         };
         input_device_manager = new Widgets.DeviceManagerWidget () {
-            is_input_manager = true
+            direction = INPUT
         };
 
         Notify.init ("wingpanel-indicator-sound");
 
-        settings.notify["max-volume"].connect (set_max_volume);
-
         var locale = Intl.setlocale (LocaleCategory.MESSAGES, null);
 
-        display_widget.volume_press_event.connect ((e) => {
-            if (e.button == Gdk.BUTTON_MIDDLE) {
-                volume_control.toggle_mute ();
-            }
-        });
-
-        display_widget.mic_press_event.connect ((e) => {
-            if (e.button == Gdk.BUTTON_MIDDLE) {
-                volume_control.toggle_mic_mute ();
-            }
-        });
+        display_widget.volume_press_event.connect (volume_control.toggle_mute);
+        display_widget.mic_press_event.connect (volume_control.toggle_mic_mute);
 
         display_widget.icon_name = get_volume_icon (volume_control.volume.volume);
 
         display_widget.volume_scroll_event.connect_after (on_volume_icon_scroll_event);
         display_widget.mic_scroll_event.connect_after (on_mic_icon_scroll_event);
 
-        volume_scale = new Widgets.Scale ("audio-volume-high-symbolic", true, 0.0, max_volume, 0.01);
+        volume_adjustment = new Gtk.Adjustment (0, 0, max_volume, 0.01, 0, 0);
+        mic_adjustment = new Gtk.Adjustment (0, 0, 1, 0.01, 0, 0);
 
-        mic_scale = new Widgets.Scale ("audio-input-microphone-symbolic", true, 0.0, 1.0, 0.01);
+        volume_scale = new Widgets.Scale (volume_adjustment);
 
-        ca_context = CanberraGtk.context_get ();
+        mic_scale = new Widgets.Scale (mic_adjustment);
+
+        ca_context = CanberraGtk4.context_get ();
         ca_context.change_props (Canberra.PROP_APPLICATION_NAME, "indicator-sound",
                                  Canberra.PROP_APPLICATION_ID, "wingpanel-indicator-sound",
                                  Canberra.PROP_APPLICATION_NAME, "start-here",
                                  Canberra.PROP_APPLICATION_LANGUAGE, locale,
                                  null);
         ca_context.open ();
+
+        Bus.get_proxy.begin<ShellKeyGrabber> (
+            BusType.SESSION, "org.gnome.Shell", "/org/gnome/Shell", NONE, null,
+            (obj, res) => {
+                try {
+                    key_grabber = Bus.get_proxy.end<ShellKeyGrabber> (res);
+                    setup_grabs ();
+                } catch (Error e) {
+                    critical (e.message);
+                    key_grabber = null;
+                }
+            }
+        );
+
+        settings.changed.connect ((key) => {
+            switch (key) {
+                case "volume-up":
+                case "volume-down":
+                case "volume-mute":
+                    if (key_grabber != null) {
+                        ungrab_keybindings ();
+                        setup_grabs ();
+                    }
+
+                    break;
+                case "max-volume":
+                    set_max_volume ();
+                    break;
+                default:
+                    break;
+            }
+        });
+
+        volume_control.bind_property ("is-listening", display_widget, "show-mic", SYNC_CREATE);
+    }
+
+    private void ungrab_keybindings () requires (key_grabber != null) {
+        var actions = saved_action_ids.get_values ().to_array ();
+
+        try {
+            key_grabber.ungrab_accelerators (actions);
+        } catch (Error e) {
+            critical ("Couldn't ungrab accelerators: %s", e.message);
+        }
+    }
+
+    private void setup_grabs () requires (key_grabber != null) {
+        Accelerator[] accelerators = {};
+
+        var volume_up_keybindings = settings.get_strv ("volume-up");
+        for (int i = 0; i < volume_up_keybindings.length; i++) {
+            accelerators += Accelerator () {
+                name = volume_up_keybindings[i],
+                mode_flags = ActionMode.LOGIN_SCREEN,
+                grab_flags = Meta.KeyBindingFlags.NONE
+            };
+        }
+
+        var volume_down_keybindings = settings.get_strv ("volume-down");
+        for (int i = 0; i < volume_down_keybindings.length; i++) {
+            accelerators += Accelerator () {
+                name = volume_down_keybindings[i],
+                mode_flags = ActionMode.LOGIN_SCREEN,
+                grab_flags = Meta.KeyBindingFlags.NONE
+            };
+        }
+
+        var volume_mute_keybindings = settings.get_strv ("volume-mute");
+        for (int i = 0; i < volume_mute_keybindings.length; i++) {
+            accelerators += Accelerator () {
+                name = volume_mute_keybindings[i],
+                mode_flags = ActionMode.LOGIN_SCREEN,
+                grab_flags = Meta.KeyBindingFlags.IGNORE_AUTOREPEAT
+            };
+        }
+
+        uint[] action_ids;
+        try {
+            action_ids = key_grabber.grab_accelerators (accelerators);
+        } catch (Error e) {
+            critical (e.message);
+            return;
+        }
+
+        for (int i = 0; i < action_ids.length; i++) {
+            if (i < volume_up_keybindings.length) {
+                saved_action_ids.@set ("volume-up", action_ids[i]);
+            } else if (i < volume_up_keybindings.length + volume_down_keybindings.length) {
+                saved_action_ids.@set ("volume-down", action_ids[i]);
+            } else {
+                saved_action_ids.@set ("volume-mute", action_ids[i]);
+            }
+        }
+
+        key_grabber_id = key_grabber.accelerator_activated.connect (on_accelerator_activated);
+    }
+
+    private void on_accelerator_activated (uint action, GLib.HashTable<string, GLib.Variant> parameters_dict) {
+        if (action in saved_action_ids["volume-up"]) {
+            handle_change (1.0, false);
+        } else if (action in saved_action_ids["volume-down"]) {
+            handle_change (-1.0, false);
+        } else if (action in saved_action_ids["volume-mute"]) {
+            volume_control.toggle_mute ();
+            notify_change (false);
+        }
     }
 
     ~Indicator () {
@@ -147,8 +266,8 @@ public class Sound.Indicator : Wingpanel.Indicator {
 
     private void on_volume_change () {
         double volume = volume_control.volume.volume / max_volume;
-        if (volume != volume_scale.scale_widget.get_value ()) {
-            volume_scale.scale_widget.set_value (volume);
+        if (volume != volume_adjustment.get_value ()) {
+            volume_adjustment.set_value (volume);
             display_widget.icon_name = get_volume_icon (volume);
         }
     }
@@ -156,8 +275,8 @@ public class Sound.Indicator : Wingpanel.Indicator {
     private void on_mic_volume_change () {
         var volume = volume_control.mic_volume;
 
-        if (volume != mic_scale.scale_widget.get_value ()) {
-            mic_scale.scale_widget.set_value (volume);
+        if (volume != mic_adjustment.get_value ()) {
+            mic_adjustment.set_value (volume);
         }
     }
 
@@ -179,9 +298,9 @@ public class Sound.Indicator : Wingpanel.Indicator {
         display_widget.mic_muted = volume_control.micMute;
 
         if (volume_control.micMute) {
-            mic_scale.icon = "microphone-sensitivity-muted-symbolic";
+            mic_scale.icon = "indicator-microphone-muted-symbolic";
         } else {
-            mic_scale.icon = "audio-input-microphone-symbolic";
+            mic_scale.icon = "indicator-microphone-symbolic";
         }
     }
 
@@ -209,37 +328,19 @@ public class Sound.Indicator : Wingpanel.Indicator {
         display_widget.icon_name = get_volume_icon (volume_control.volume.volume);
     }
 
-    private void on_volume_icon_scroll_event (Gdk.EventScroll e) {
+    private void on_volume_icon_scroll_event (Value event_value) {
+        unowned var e = (Gdk.ScrollEvent) event_value.peek_pointer ();
         double dir = 0.0;
         if (handle_scroll_event (e, out dir)) {
             handle_change (dir, false);
         }
     }
 
-    private void on_mic_icon_scroll_event (Gdk.EventScroll e) {
+    private void on_mic_icon_scroll_event (Value event_value) {
+        unowned var e = (Gdk.ScrollEvent) event_value.peek_pointer ();
         double dir = 0.0;
         if (handle_scroll_event (e, out dir)) {
             handle_change (dir, true);
-        }
-    }
-
-    private void update_mic_visibility () {
-        if (volume_control.is_listening) {
-            mic_scale.no_show_all = false;
-            mic_scale.show_all ();
-            mic_separator.no_show_all = false;
-            mic_separator.show ();
-            input_device_manager.no_show_all = false;
-            input_device_manager.show ();
-            display_widget.show_mic = true;
-        } else {
-            mic_scale.no_show_all = true;
-            mic_scale.hide ();
-            mic_separator.no_show_all = true;
-            mic_separator.hide ();
-            input_device_manager.no_show_all = true;
-            input_device_manager.hide ();
-            display_widget.show_mic = false;
         }
     }
 
@@ -280,53 +381,53 @@ public class Sound.Indicator : Wingpanel.Indicator {
         if (main_box == null) {
             mpris = new Widgets.PlayerList ();
 
-            volume_scale.switch_widget.active = !volume_control.mute; // don't trigger animation on first opening
             volume_scale.active = !volume_control.mute;
-            volume_scale.scale_widget.set_value (volume_control.volume.volume);
-            volume_scale.icon = get_volume_icon (volume_scale.scale_widget.get_value ());
+            volume_adjustment.set_value (volume_control.volume.volume);
+            volume_scale.icon = get_volume_icon (volume_adjustment.get_value ());
 
             set_max_volume ();
 
             mic_scale.active = !volume_control.micMute;
 
-            mic_separator = new Gtk.Separator (Gtk.Orientation.HORIZONTAL);
-
-            update_mic_visibility ();
-
-            var settings_button = new Gtk.ModelButton () {
+            var settings_button = new Wingpanel.PopoverMenuItem () {
                 text = _("Sound Settings…"),
                 margin_top = 3
             };
 
+            var input_controls_box = new Gtk.Box (VERTICAL, 0);
+            input_controls_box.append (mic_scale);
+            input_controls_box.append (input_device_manager);
+            input_controls_box.append (new Gtk.Separator (HORIZONTAL));
+
+            var input_controls_revealer = new Gtk.Revealer () {
+                child = input_controls_box
+            };
+
             main_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
-            main_box.add (mpris);
-            main_box.add (new Gtk.Separator (Gtk.Orientation.HORIZONTAL));
-            main_box.add (volume_scale);
-            main_box.add (output_device_manager);
-            main_box.add (new Gtk.Separator (Gtk.Orientation.HORIZONTAL));
-            main_box.add (mic_scale);
-            main_box.add (input_device_manager);
-            main_box.add (mic_separator);
-            main_box.add (settings_button);
+            if (is_in_session) {
+                main_box.append (mpris);
+                main_box.append (new Gtk.Separator (Gtk.Orientation.HORIZONTAL));
+            }
+            main_box.append (volume_scale);
+            main_box.append (output_device_manager);
+            if (is_in_session) {
+                main_box.append (new Gtk.Separator (Gtk.Orientation.HORIZONTAL));
+                main_box.append (input_controls_revealer);
+                main_box.append (settings_button);
+            }
 
             mic_scale.notify["active"].connect (on_mic_switch_change);
 
-            mic_scale.scale_widget.value_changed.connect (() => {
-                volume_control.mic_volume = mic_scale.scale_widget.get_value ();
+            mic_adjustment.value_changed.connect (() => {
+                volume_control.mic_volume = mic_adjustment.get_value ();
             });
 
-            mic_scale.scale_widget.button_release_event.connect (() => {
-                notify_change (true);
-                return false;
-            });
-
-            mic_scale.scroll_event.connect_after ((e) => {
+            mic_scale.scroll_event.connect_after ((event_value) => {
+                unowned var e = (Gdk.ScrollEvent) event_value.peek_pointer ();
                 double dir = 0.0;
                 if (handle_scroll_event (e, out dir)) {
                     handle_change (dir, true);
                 }
-
-                return true;
             });
 
             mpris.close.connect (() => {
@@ -343,31 +444,29 @@ public class Sound.Indicator : Wingpanel.Indicator {
                 }
             });
 
-            volume_scale.scale_widget.button_release_event.connect ((e) => {
-                notify_change (false);
-                return false;
-            });
+            volume_scale.slider_dropped.connect (play_volume_change_sound);
 
-            volume_scale.scroll_event.connect_after ((e) => {
+            volume_scale.scroll_event.connect_after ((event_value) => {
+                unowned var e = (Gdk.ScrollEvent) event_value.peek_pointer ();
                 double dir = 0.0;
                 if (handle_scroll_event (e, out dir)) {
                     handle_change (dir, false);
                 }
-
-                return true;
             });
 
             volume_scale.notify["active"].connect (on_volume_switch_change);
 
-            volume_scale.scale_widget.value_changed.connect (() => {
-                var val = volume_scale.scale_widget.get_value () * max_volume;
+            volume_adjustment.value_changed.connect (() => {
+                var val = volume_adjustment.get_value () * max_volume;
                 var vol = new Services.VolumeControl.Volume () {
                     volume = val.clamp (0.0, max_volume),
                     reason = Services.VolumeControl.VolumeReasons.USER_KEYPRESS
                 };
                 volume_control.volume = vol;
-                volume_scale.icon = get_volume_icon (volume_scale.scale_widget.get_value ());
+                volume_scale.icon = get_volume_icon (volume_adjustment.get_value ());
             });
+
+            volume_control.bind_property ("is-listening", input_controls_revealer, "reveal-child", SYNC_CREATE);
         }
 
         return main_box;
@@ -381,10 +480,11 @@ public class Sound.Indicator : Wingpanel.Indicator {
      * In the case of diagonal scrolling, it ignores the event unless movement in one direction
      * is more than twice the movement in the other direction.
      */
-    private bool handle_scroll_event (Gdk.EventScroll e, out double dir) {
+    private bool handle_scroll_event (Gdk.ScrollEvent e, out double dir) {
         dir = 0.0;
         bool natural_scroll;
-        var event_source = e.get_source_device ().input_source;
+        var event_source = e.get_device ().get_source ();
+
         if (event_source == Gdk.InputSource.MOUSE) {
             natural_scroll = natural_scroll_mouse;
         } else if (event_source == Gdk.InputSource.TOUCHPAD) {
@@ -393,19 +493,21 @@ public class Sound.Indicator : Wingpanel.Indicator {
             natural_scroll = false;
         }
 
-        switch (e.direction) {
+        switch (e.get_direction ()) {
             case Gdk.ScrollDirection.SMOOTH:
-                    var abs_x = double.max (e.delta_x.abs (), 0.0001);
-                    var abs_y = double.max (e.delta_y.abs (), 0.0001);
+                double dx, dy;
+                e.get_deltas (out dx, out dy);
 
-                    if (abs_y / abs_x > 2.0) {
-                        total_y_delta += e.delta_y;
-                    } else if (abs_x / abs_y > 2.0) {
-                        total_x_delta += e.delta_x;
-                    }
+                var abs_x = double.max (dx.abs (), 0.0001);
+                var abs_y = double.max (dy.abs (), 0.0001);
+
+                if (abs_y / abs_x > 2.0) {
+                    total_y_delta += dy;
+                } else if (abs_x / abs_y > 2.0) {
+                    total_x_delta += dx;
+                }
 
                 break;
-
             case Gdk.ScrollDirection.UP:
                 total_y_delta = -1.0;
                 break;
@@ -512,16 +614,20 @@ public class Sound.Indicator : Wingpanel.Indicator {
             /* If open or no notification shown, just play sound */
             /* TODO: Should this be suppressed if mic is on? */
             if (!notification_showing) {
-                Canberra.Proplist props;
-                Canberra.Proplist.create (out props);
-                props.sets (Canberra.PROP_CANBERRA_CACHE_CONTROL, "volatile");
-                props.sets (Canberra.PROP_EVENT_ID, "audio-volume-change");
-                ca_context.play_full (0, props);
+                play_volume_change_sound ();
             }
 
             notify_timeout_id = 0;
             return false;
         });
+    }
+
+    private void play_volume_change_sound () {
+        Canberra.Proplist props;
+        Canberra.Proplist.create (out props);
+        props.sets (Canberra.PROP_CANBERRA_CACHE_CONTROL, "volatile");
+        props.sets (Canberra.PROP_EVENT_ID, "audio-volume-change");
+        ca_context.play_full (0, props);
     }
 
     /* This also plays a sound. TODO Is there a way of suppressing this if mic is on? */
@@ -535,9 +641,13 @@ public class Sound.Indicator : Wingpanel.Indicator {
             string icon;
 
             if (is_mic) {
-                icon = "audio-input-microphone-symbolic";
+                if (volume_control.mic_volume <= 0 || volume_control.micMute) {
+                    icon = "microphone-sensitivity-muted-symbolic";
+                } else {
+                    icon = "audio-input-microphone-symbolic";
+                }
             } else {
-                icon = get_volume_icon (volume_scale.scale_widget.get_value ());
+                icon = get_volume_icon (volume_adjustment.get_value ());
             }
 
             notification.update ("indicator-sound", "", icon);
@@ -579,10 +689,6 @@ public class Sound.Indicator : Wingpanel.Indicator {
 public Wingpanel.Indicator? get_indicator (Module module, Wingpanel.IndicatorManager.ServerType server_type) {
     debug ("Activating Sound Indicator");
 
-    if (server_type != Wingpanel.IndicatorManager.ServerType.SESSION) {
-        return null;
-    }
-
-    var indicator = new Sound.Indicator ();
+    var indicator = new Sound.Indicator (server_type == SESSION);
     return indicator;
 }

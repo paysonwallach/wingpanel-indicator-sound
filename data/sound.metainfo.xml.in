@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2019-2023 elementary, Inc. <contact@elementary.io> -->
+<component type="addon">
+  <id>io.elementary.wingpanel.sound</id>
+  <translation type="gettext">sound-indicator</translation>
+  <extends>io.elementary.wingpanel</extends>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0+</project_license>
+  <compulsory_for_desktop>Pantheon</compulsory_for_desktop>
+
+  <name>Sound Indicator</name>
+  <summary>Adjust speaker and microphone volume or see Now Playing information and media controls</summary>
+  <icon type="stock">preferences-desktop-sound</icon>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/elementary/wingpanel-indicator-sound/8.0.0/data/screenshot.png</image>
+    </screenshot>
+  </screenshots>
+
+  <url type="bugtracker">https://github.com/elementary/wingpanel-indicator-sound/issues</url>
+  <url type="donation">https://elementary.io/get-involved#funding</url>
+  <url type="help">https://github.com/elementary/wingpanel-indicator-sound/discussions/categories/q-a</url>
+  <url type="homepage">https://elementary.io/</url>
+  <url type="translate">https://l10n.elementary.io/projects/wingpanel/wingpanel-indicator-sound/</url>
+
+  <developer id="org.elementaryos">
+    <name>elementary, Inc.</name>
+  </developer>
+  <project_group>elementary</project_group>
+  <update_contact>contact_at_elementary.io</update_contact>
+
+  <releases>
+    <release version="8.0.3" date="2026-02-05" urgency="medium">
+      <description>
+        <p>Minor updates</p>
+        <ul>
+          <li>Updated translations</li>
+        </ul>
+      </description>
+      <issues>
+        <issue url="https://github.com/elementary/wingpanel-indicator-sound/issues/313">Setting max-volume key does not take effect</issue>
+      </issues>
+    </release>
+
+    <release version="8.0.2" date="2025-10-10" urgency="medium">
+      <description>
+        <p>Minor updates</p>
+        <ul>
+          <li>Use a toggle button for muting devices instead of a switch</li>
+          <li>Updated translations</li>
+        </ul>
+      </description>
+      <issues>
+        <issue url="https://github.com/elementary/greeter/issues/829">Media keys aren't recognized</issue>
+      </issues>
+    </release>
+
+    <release version="8.0.1" date="2025-03-10" urgency="medium">
+      <description>
+        <p>Minor updates</p>
+        <ul>
+          <li>Updated translations</li>
+        </ul>
+      </description>
+      <issues>
+        <issue url="https://github.com/elementary/wingpanel-indicator-sound/issues/279">MPRIS artUrl not loaded from Chromium based browser</issue>
+      </issues>
+    </release>
+
+    <release version="8.0.0" date="2024-08-21" urgency="medium">
+      <description>
+        <p>Minor updates</p>
+        <ul>
+          <li>Updated translations</li>
+        </ul>
+      </description>
+      <issues>
+        <issue url="https://github.com/elementary/wingpanel-indicator-sound/issues/9">Suppress confirmation notifications while open</issue>
+        <issue url="https://github.com/elementary/wingpanel-indicator-sound/issues/13">Move confirmation notifications to their relevant indicators</issue>
+        <issue url="https://github.com/elementary/wingpanel-indicator-sound/issues/99">Wingpanel disappears after clicking the sound icon</issue>
+        <issue url="https://github.com/elementary/wingpanel-indicator-sound/issues/112">Show on Greeter</issue>
+      </issues>
+    </release>
+
+    <release version="7.0.0" date="2023-07-05" urgency="medium">
+      <description>
+        <p>Minor updates</p>
+        <ul>
+          <li>Use circle buttons for playback controls</li>
+          <li>Middle-clicking the microphone indicator no longer mutes monitors</li>
+          <li>Updated translations</li>
+        </ul>
+      </description>
+      <issues>
+        <issue url="https://github.com/elementary/wingpanel-indicator-sound/issues/12">Buttons jump around when skipping songs</issue>
+        <issue url="https://github.com/elementary/wingpanel-indicator-sound/issues/254">Update microphone icon</issue>
+      </issues>
+    </release>
+
+    <release version="6.0.2" date="2022-10-19" urgency="medium">
+      <description>
+        <p>Minor updates</p>
+        <ul>
+          <li>Use device form factor when available to assign more accurate icons</li>
+          <li>Provide a fallback device icon when none is available</li>
+          <li>Fix missing switch animations</li>
+          <li>Use the volume step value from GNOME Settings Daemon</li>
+          <li>Updated translations</li>
+        </ul>
+      </description>
+    </release>
+
+    <release version="6.0.1" date="2021-11-18" urgency="medium">
+      <description>
+        <p>Minor updates</p>
+        <ul>
+          <li>Show more specific icons for different types of devices</li>
+          <li>Updated translations</li>
+        </ul>
+      </description>
+    </release>
+
+    <release version="6.0.0" date="2021-07-14" urgency="medium">
+      <description>
+        <p>New features</p>
+        <ul>
+          <li>select specific input and output devices</li>
+        </ul>
+        <p>Minor updates</p>
+        <ul>
+          <li>Hide temporary audio players when they stop</li>
+          <li>Add a tooltip on hover</li>
+          <li>Minor visual improvements</li>
+          <li>Updated translations</li>
+        </ul>
+      </description>
+    </release>
+
+    <release version="2.1.8" date="2020-12-23" urgency="medium" />
+    <release version="2.1.7" date="2020-10-08" urgency="medium" />
+    <release version="2.1.6" date="2020-08-07" urgency="medium" />
+    <release version="2.1.5" date="2020-04-02" urgency="medium" />
+    <release version="2.1.4" date="2019-11-25" urgency="medium" />
+  </releases>
+</component>

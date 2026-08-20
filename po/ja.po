@@ -1,48 +1,57 @@
-# Ryo Nakano <ryonakaknock3@gmail.com>, 2019, 2020, 2021.
+# Ryo Nakano <ryonakaknock3@gmail.com>, 2019, 2020, 2021, 2024, 2025.
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-10-19 19:46+0000\n"
-"PO-Revision-Date: 2021-02-26 13:35+0000\n"
+"POT-Creation-Date: 2026-01-22 17:26+0000\n"
+"PO-Revision-Date: 2025-08-30 22:55+0000\n"
 "Last-Translator: Ryo Nakano <ryonakaknock3@gmail.com>\n"
-"Language-Team: Japanese <https://l10n.elementary.io/projects/wingpanel/wingpanel-indicator-sound/ja/>\n"
+"Language-Team: Japanese <https://l10n.elementaryos.org/projects/wingpanel/"
+"wingpanel-indicator-sound/ja/>\n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 4.4.2\n"
+"X-Generator: Weblate 5.11.4\n"
 "X-Launchpad-Export-Date: 2017-04-05 07:45+0000\n"
 
-#: src/Indicator.vala:296
+#: src/Indicator.vala:415
 msgid "Sound Settings…"
-msgstr "サウンドの設定…"
+msgstr "サウンド設定…"
 
-#: src/Indicator.vala:568
+#: src/Indicator.vala:691
 #, c-format
 msgid "Volume: %.0f%%"
 msgstr "音量: %.0f%%"
 
-#: src/Indicator.vala:571
+#: src/Indicator.vala:694
 msgid "Middle-click to unmute"
 msgstr "ミュートを解除するには中クリックしてください"
 
-#: src/Indicator.vala:571
+#: src/Indicator.vala:694
 msgid "Middle-click to mute"
-msgstr "ミュートにするには中クリックしてください"
+msgstr "ミュートするには中クリックしてください"
 
-#: src/Widgets/PlayerRow.vala:28
+#: src/Widgets/PlayerRow.vala:16
 msgid "Not playing"
-msgstr "何も再生していません"
+msgstr "停止中"
 
-#: src/Widgets/PlayerRow.vala:43
+#: src/Widgets/PlayerRow.vala:31
 msgid "Music player"
 msgstr "ミュージックプレーヤー"
 
-#: src/Widgets/PlayerRow.vala:555
+#: src/Widgets/PlayerRow.vala:566
 msgid "Unknown Artist"
 msgstr "不明なアーティスト"
+
+#: src/Widgets/Scale.vala:67
+msgid "Mute"
+msgstr "ミュート"
+
+#: src/Widgets/Scale.vala:69
+msgid "Unmute"
+msgstr "ミュート解除"
 
 #~ msgid "Indicator Sound"
 #~ msgstr "サウンドの通知"

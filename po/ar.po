@@ -5,46 +5,56 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-10-19 19:46+0000\n"
+"POT-Creation-Date: 2026-01-22 17:26+0000\n"
 "PO-Revision-Date: 2021-08-27 13:57+0000\n"
 "Last-Translator: Muhammad Al-Jayyousi <m7md.j99@protonmail.com>\n"
-"Language-Team: Arabic <https://l10n.elementary.io/projects/wingpanel/wingpanel-indicator-sound/ar/>\n"
+"Language-Team: Arabic <https://l10n.elementary.io/projects/wingpanel/"
+"wingpanel-indicator-sound/ar/>\n"
 "Language: ar\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5;\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 ? 4 : 5;\n"
 "X-Generator: Weblate 4.4.2\n"
 "X-Launchpad-Export-Date: 2017-04-05 07:45+0000\n"
 
-#: src/Indicator.vala:296
+#: src/Indicator.vala:415
 msgid "Sound Settings…"
 msgstr "إعدادات الصوت…"
 
-#: src/Indicator.vala:568
+#: src/Indicator.vala:691
 #, c-format
 msgid "Volume: %.0f%%"
 msgstr "مستوى الصوت: %.0f%%"
 
-#: src/Indicator.vala:571
+#: src/Indicator.vala:694
 msgid "Middle-click to unmute"
 msgstr "اضغط الزر الأوسط لإلغاء كتم الصوت"
 
-#: src/Indicator.vala:571
+#: src/Indicator.vala:694
 msgid "Middle-click to mute"
 msgstr "اضغط الزر الأوسط لكتم الصوت"
 
-#: src/Widgets/PlayerRow.vala:28
+#: src/Widgets/PlayerRow.vala:16
 msgid "Not playing"
 msgstr "ليس في وضع التشغيل"
 
-#: src/Widgets/PlayerRow.vala:43
+#: src/Widgets/PlayerRow.vala:31
 msgid "Music player"
 msgstr "مشغل الموسيقى"
 
-#: src/Widgets/PlayerRow.vala:555
+#: src/Widgets/PlayerRow.vala:566
 msgid "Unknown Artist"
 msgstr "فنان غير معروف"
+
+#: src/Widgets/Scale.vala:67
+msgid "Mute"
+msgstr ""
+
+#: src/Widgets/Scale.vala:69
+msgid "Unmute"
+msgstr ""
 
 #~ msgid "Indicator Sound"
 #~ msgstr "مؤشر الصوت"

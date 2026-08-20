@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-public class Sound.Widgets.PlayerList : Gtk.Box {
+public class Sound.Widgets.PlayerList : Granite.Bin {
     public signal void close ();
 
     public Sound.Services.ObjectManager object_manager;
@@ -27,8 +27,15 @@ public class Sound.Widgets.PlayerList : Gtk.Box {
     private HashTable<string,PlayerRow> ifaces;
     private Services.DBusImpl impl;
 
+    private Gtk.ListBox listbox;
+
     construct {
         ifaces = new HashTable<string,PlayerRow> (str_hash, str_equal);
+
+        listbox = new Gtk.ListBox ();
+
+        child = listbox;
+        margin_bottom = 3;
 
         Idle.add (() => {
             setup_dbus ();
@@ -36,7 +43,6 @@ public class Sound.Widgets.PlayerList : Gtk.Box {
         });
 
         object_manager = new Services.ObjectManager ();
-        object_manager.bind_property ("has-object", this, "visible", GLib.BindingFlags.SYNC_CREATE);
 
         object_manager.media_player_added.connect ((media_player, name, icon) => {
             bluetooth_widget = new PlayerRow.bluetooth (media_player, name, icon);
@@ -44,13 +50,12 @@ public class Sound.Widgets.PlayerList : Gtk.Box {
                 close ();
             });
 
-            bluetooth_widget.show_all ();
-            pack_start (bluetooth_widget, false, false, 0);
+            listbox.prepend (bluetooth_widget);
         });
 
         object_manager.media_player_removed.connect ((media_player) => {
             debug ("Media player %s removed", media_player.name);
-            bluetooth_widget.destroy ();
+            listbox.remove (bluetooth_widget);
         });
 
         object_manager.media_player_status_changed.connect ((status, title, artist) => {
@@ -63,10 +68,6 @@ public class Sound.Widgets.PlayerList : Gtk.Box {
                 }
             }
         });
-
-        orientation = Gtk.Orientation.VERTICAL;
-        margin_bottom = 3;
-        show_all ();
     }
 
     public void update_default_player () {
@@ -75,7 +76,7 @@ public class Sound.Widgets.PlayerList : Gtk.Box {
             default_player = new_player;
 
             if (default_widget != null) {
-                default_widget.destroy ();
+                listbox.remove (default_widget);
             }
 
             default_widget = new PlayerRow.default (new_player);
@@ -84,8 +85,7 @@ public class Sound.Widgets.PlayerList : Gtk.Box {
                 close ();
             });
 
-            default_widget.show_all ();
-            pack_start (default_widget, false, false, 0);
+            listbox.prepend (default_widget);
         }
     }
 
@@ -105,16 +105,14 @@ public class Sound.Widgets.PlayerList : Gtk.Box {
      * @param name DBUS name (object path)
      * @param iface The constructed MprisClient instance
      */
-    void add_iface (string name, Services.MprisClient iface) {
-        if (iface.player.desktop_entry == default_player.get_id ().replace (".desktop", "")) {
+    private void add_iface (string name, Services.MprisClient iface) {
+        if ((default_player != null) && (iface.player.desktop_entry == default_player.get_id ().replace (".desktop", ""))) {
             default_widget.mpris_name = name;
             default_widget.client = iface;
             ifaces.insert (name, default_widget);
-            default_widget.no_show_all = false;
             default_widget.visible = true;
         } else {
             if (default_widget.mpris_name == "") {
-                default_widget.no_show_all = true;
                 default_widget.visible = false;
             }
 
@@ -122,8 +120,8 @@ public class Sound.Widgets.PlayerList : Gtk.Box {
             widg.close.connect (() => {
                 close ();
             });
-            widg.show_all ();
-            pack_start (widg, false, false, 0);
+
+            listbox.append (widg);
             ifaces.insert (name, widg);
         }
     }
@@ -133,25 +131,22 @@ public class Sound.Widgets.PlayerList : Gtk.Box {
      *
      * @param name DBUS name to remove handler for
      */
-    void destroy_iface (string name) {
+    private void destroy_iface (string name) {
         if (default_widget.mpris_name == name) {
             default_widget.client = null;
         } else {
             var widg = ifaces[name];
             if (widg != null) {
-                remove (widg);
+                listbox.remove (widg);
             }
         }
 
         ifaces.remove (name);
 
         if (ifaces.length != 0 && default_widget.mpris_name == "") {
-            default_widget.no_show_all = true;
             default_widget.visible = false;
         } else {
-            default_widget.no_show_all = false;
             default_widget.visible = true;
-            show_all ();
         }
     }
 

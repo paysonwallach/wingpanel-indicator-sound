@@ -1,72 +1,57 @@
-// -*- Mode: vala; indent-tabs-mode: nil; tab-width: 4 -*-
-/*-
- * Copyright 2021 elementary, Inc. (https://elementary.io)
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Library General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Library General Public License for more details.
- *
- * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA 02110-1301 USA.
+/*
+ * SPDX-License-Identifier: LGPL-2.0-or-later
+ * SPDX-FileCopyrightText: 2021-2024 elementary, Inc. (https://elementary.io)
  *
  * Authored by: Sean Davis <sean@bluesabre.org>
  */
 
-public class DeviceItem : Gtk.ListBoxRow {
+public class Sound.Widgets.DeviceItem : Gtk.ListBoxRow {
     public signal void activated ();
 
-    private Gtk.RadioButton radio_button;
+    public Sound.Device device { get; construct; }
+    public Gtk.ListBoxRow? row { get; construct; }
 
-    public Gtk.ListBoxRow row { get; construct; }
-    public string display_name { get; construct; }
-    public string icon_name { get; construct; }
-    public bool is_priority { get; set construct; }
-    public bool is_default { get; construct; }
+    private bool is_priority;
+    private Gtk.CheckButton radio_button;
 
-    public DeviceItem (string display_name, bool is_default, bool is_priority, string icon_name, Gtk.ListBoxRow? row) {
-        Object (display_name: display_name, is_default: is_default, is_priority: is_priority, icon_name: icon_name, row: row);
+    public DeviceItem (Device device, Gtk.ListBoxRow? row) {
+        Object (device: device, row: row);
     }
 
     class construct {
-        set_css_name (Gtk.STYLE_CLASS_MENUITEM);
+        set_css_name ("modelbutton");
     }
 
     construct {
-        var label = new Gtk.Label (display_name) {
-            ellipsize = Pango.EllipsizeMode.MIDDLE
-        };
-        radio_button = new Gtk.RadioButton (null) {
-            active = is_default,
+        var label = new Gtk.Label (device.display_name) {
+            halign = START,
             hexpand = true,
-            xalign = 0
+            ellipsize = MIDDLE
         };
-        radio_button.add (label);
 
-        if (row != null) {
-            var item = (DeviceItem) row;
-            radio_button.set_group (item.radio_button.get_group ());
-        }
-
-        var img_type = new Gtk.Image.from_icon_name (icon_name + "-symbolic", Gtk.IconSize.MENU) {
+        var image = new Gtk.Image.from_icon_name (device.icon_name + "-symbolic") {
             use_fallback = true
         };
 
-        var box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 8);
-        box.add (radio_button);
-        box.add (img_type);
+        var box = new Gtk.Box (HORIZONTAL, 6);
+        box.append (label);
+        box.append (image);
 
-        add (box);
-        show_all ();
+        radio_button = new Gtk.CheckButton () {
+            child = box,
+            active = device.is_default,
+            hexpand = true
+        };
+
+        if (row != null) {
+            var item = (DeviceItem) row;
+            radio_button.set_group (item.radio_button);
+        }
+
+        child = radio_button;
+
         selectable = false;
-        no_show_all = true;
+        visible = false;
 
         radio_button.toggled.connect (() => {
             if (radio_button.active) {
@@ -75,17 +60,17 @@ public class DeviceItem : Gtk.ListBoxRow {
             update_visible (radio_button.active);
         });
 
-        update_visible (is_default);
+        is_priority = device.is_priority;
+        update_visible (device.is_default);
     }
 
     public void set_default () {
         radio_button.active = true;
         is_priority = true;
-        update_visible (true);
+        visible = true;
     }
 
-    public void update_visible (bool is_default) {
+    private void update_visible (bool is_default) {
         visible = is_priority || is_default;
     }
-
 }

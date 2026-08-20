@@ -21,9 +21,10 @@
  */
 
 public class Sound.Widgets.DeviceManagerWidget : Gtk.Box {
+    public PulseAudio.Direction direction { get; set; }
+
     private Gtk.ListBox device_list;
-    private Gtk.ScrolledWindow scrolled_box;
-    public bool is_input_manager;
+    private Gtk.Revealer devices_revealer;
 
     private unowned PulseAudioManager pam;
 
@@ -36,36 +37,42 @@ public class Sound.Widgets.DeviceManagerWidget : Gtk.Box {
 
         device_list = new Gtk.ListBox () {
             activate_on_single_click = true,
+            hexpand = true,
             visible = true
         };
 
-        scrolled_box = new Gtk.ScrolledWindow (null, null) {
+        var scrolled_box = new Gtk.ScrolledWindow () {
+            child = device_list,
             hscrollbar_policy = Gtk.PolicyType.NEVER,
             propagate_natural_height = true,
             max_content_height = 256,
-            no_show_all = true,
             margin_bottom = 3
         };
-        scrolled_box.add (device_list);
 
-        add (scrolled_box);
+        devices_revealer = new Gtk.Revealer () {
+            child = scrolled_box
+        };
+
+        append (devices_revealer);
 
         update_showable ();
+
+        device_list.row_activated.connect ((row) => {
+            var device = ((DeviceItem) row).device;
+            pam.set_default_device.begin (device);
+            update_preferred_devices (device);
+        });
     }
 
     private void add_device (Device device) {
         // Avoid Built-in Analog input - output devices
-        if (device.input != is_input_manager || device.port_name == "analog-output" || device.port_name == "analog-input") {
+        if (device.direction != direction || device.port_name == "analog-output" || device.port_name == "analog-input") {
             return;
         }
 
         Gtk.ListBoxRow? row = device_list.get_row_at_index (0);
-        var device_item = new DeviceItem (device.display_name,
-                                          device.is_default,
-                                          device.is_priority,
-                                          device.icon_name,
-                                          row);
-        device_list.add (device_item);
+        var device_item = new DeviceItem (device, row);
+        device_list.append (device_item);
 
         device_item.activated.connect (() => {
             pam.set_default_device.begin (device);
@@ -74,7 +81,6 @@ public class Sound.Widgets.DeviceManagerWidget : Gtk.Box {
 
         device.removed.connect (() => {
             device_list.remove (device_item);
-            device_list.show_all ();
             update_showable ();
         });
 
@@ -121,22 +127,8 @@ public class Sound.Widgets.DeviceManagerWidget : Gtk.Box {
         Sound.Indicator.settings.set_value ("preferred-devices", dictionary);
     }
 
-    private uint n_visible_items () {
-        uint n = 0;
-        foreach (unowned var device in device_list.get_children ()) {
-            if (device.visible) {
-                n++;
-            }
-        }
-        return n;
-    }
-
     private void update_showable () {
-        if (n_visible_items () <= 1) {
-            scrolled_box.hide ();
-        } else {
-            scrolled_box.show ();
-        }
+        devices_revealer.reveal_child = device_list.get_row_at_index (1) != null;
     }
 
     private void default_output_changed () {

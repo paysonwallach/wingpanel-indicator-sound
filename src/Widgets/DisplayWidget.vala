@@ -15,66 +15,86 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-public class DisplayWidget : Gtk.Box {
+public class Sound.DisplayWidget : Gtk.Box {
+    public signal void volume_press_event ();
+    public signal void mic_press_event ();
+
     public bool show_mic { get; set; }
     public bool mic_muted { get; set; }
     public string icon_name { get; set; }
 
-    public signal void volume_scroll_event (Gdk.EventScroll e);
-    public signal void mic_scroll_event (Gdk.EventScroll e);
-
-    public signal void volume_press_event (Gdk.EventButton e);
-    public signal void mic_press_event (Gdk.EventButton e);
+    // HACK: Using Gdk.ScrollEvent instead of Value as the type of the parameter
+    // resulsts build error with valac 0.56.18
+    // See https://gitlab.gnome.org/GNOME/vala/-/work_items/1671
+    public signal void volume_scroll_event (Value event_value);
+    public signal void mic_scroll_event (Value event_value);
 
     construct {
-        var provider = new Gtk.CssProvider ();
-        provider.load_from_resource ("io/elementary/wingpanel/sound/indicator.css");
-
         var volume_icon = new Gtk.Image () {
             pixel_size = 24
         };
 
-        var mic_icon = new Gtk.Spinner () {
-            margin_end = 18
-        };
-
-        var mic_style_context = mic_icon.get_style_context ();
-        mic_style_context.add_provider (provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
-        mic_style_context.add_class ("mic-icon");
+        var mic_icon = new Gtk.Spinner ();
+        mic_icon.add_css_class ("mic-icon");
+        mic_icon.add_css_class ("composited-indicator");
 
         var mic_revealer = new Gtk.Revealer () {
-            transition_type = Gtk.RevealerTransitionType.SLIDE_LEFT
+            child = mic_icon,
+            transition_type = SLIDE_LEFT
         };
-        mic_revealer.add (mic_icon);
 
         valign = Gtk.Align.CENTER;
-        add (mic_revealer);
-        add (volume_icon);
+        append (mic_revealer);
+        append (volume_icon);
 
-        /* SMOOTH_SCROLL_MASK has no effect on this widget for reasons that are not
-         * entirely clear. Only normal scroll events are received even if the SMOOTH_SCROLL_MASK
-         * is set. */
-        scroll_event.connect ((e) => {
-            /* Determine whether scrolling on mic icon or not */
-            if (show_mic && e.x < mic_icon.get_allocated_width () + mic_icon.margin_end) {
-                mic_scroll_event (e);
-            } else {
-                volume_scroll_event (e);
+        var mic_scroll_controller = new Gtk.EventControllerLegacy ();
+        mic_scroll_controller.event.connect ((e) => {
+            if (e.get_event_type () != Gdk.EventType.SCROLL) {
+                return Gdk.EVENT_PROPAGATE;
             }
 
+            var event_value = Value (typeof (Gdk.ScrollEvent));
+            event_value.set_instance (e);
+            mic_scroll_event (event_value);
             return Gdk.EVENT_STOP;
         });
 
-        button_press_event.connect ((e) => {
-            /* Determine whether scrolling on mic icon or not */
-            if (show_mic && e.x < 24 + mic_icon.margin_end) {
-                mic_press_event (e);
-            } else {
-                volume_press_event (e);
+        var volume_scroll_controller = new Gtk.EventControllerLegacy ();
+        volume_scroll_controller.event.connect ((e) => {
+            if (e.get_event_type () != Gdk.EventType.SCROLL) {
+                return Gdk.EVENT_PROPAGATE;
             }
 
-            return Gdk.EVENT_PROPAGATE;
+            var event_value = Value (typeof (Gdk.ScrollEvent));
+            event_value.set_instance (e);
+            volume_scroll_event (event_value);
+            return Gdk.EVENT_STOP;
         });
+
+        mic_icon.add_controller (mic_scroll_controller);
+        volume_icon.add_controller (volume_scroll_controller);
+
+        var mic_gesture_click = new Gtk.GestureClick () {
+            button = Gdk.BUTTON_MIDDLE
+        };
+        mic_gesture_click.pressed.connect (() => {
+            mic_press_event ();
+            mic_gesture_click.set_state (CLAIMED);
+            mic_gesture_click.reset ();
+        });
+
+        mic_icon.add_controller (mic_gesture_click);
+
+        var volume_gesture_click = new Gtk.GestureClick () {
+            button = Gdk.BUTTON_MIDDLE
+        };
+        volume_gesture_click.pressed.connect (() => {
+            volume_press_event ();
+            volume_gesture_click.set_state (CLAIMED);
+            volume_gesture_click.reset ();
+        });
+
+        volume_icon.add_controller (volume_gesture_click);
 
         bind_property (
             "icon-name",
@@ -91,9 +111,9 @@ public class DisplayWidget : Gtk.Box {
 
         notify["mic-muted"].connect (() => {
             if (mic_muted) {
-                mic_style_context.add_class ("disabled");
+                mic_icon.add_css_class ("disabled");
             } else {
-                mic_style_context.remove_class ("disabled");
+                mic_icon.remove_css_class ("disabled");
             }
         });
     }

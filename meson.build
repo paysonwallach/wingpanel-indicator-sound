@@ -1,7 +1,8 @@
 project(
     'sound',
     'vala', 'c',
-    version: '6.0.2'
+    version: '8.0.3',
+    meson_version: '>= 0.57.0'
 )
 
 gettext_name = meson.project_name() + '-indicator'
@@ -21,13 +22,13 @@ add_project_arguments(
 
 add_project_arguments('-DG_LOG_DOMAIN="io.elementary.wingpanel.sound"', language:'c')
 
-asresources = gnome.compile_resources(
-    'as-resources', 'data/mask.gresource.xml',
-    source_dir: 'data',
-    c_name: 'as'
+gresource = gnome.compile_resources(
+    'gresource',
+    'data' / 'gresource.xml',
+    source_dir: 'data'
 )
 
-wingpanel_dep = dependency('wingpanel', version: '>=2.1.0')
+wingpanel_dep = dependency('wingpanel-9')
 wingpanel_indicatorsdir = wingpanel_dep.get_pkgconfig_variable('indicatorsdir', define_variable: ['libdir', libdir])
 
 config_data = configuration_data()
@@ -42,6 +43,7 @@ config_file = configure_file(
 shared_module(
     meson.project_name(),
     config_file,
+    'src/CanberraGtk4.vala',
     'src/Device.vala',
     'src/Indicator.vala',
     'src/Widgets/DisplayWidget.vala',
@@ -56,18 +58,20 @@ shared_module(
     'src/Services/Manager.vala',
     'src/Services/Device.vala',
     'src/Services/MediaPlayer.vala',
-    asresources,
+    'src/Services/ShellKeyGrabber.vala',
+    gresource,
     dependencies: [
         dependency('glib-2.0'),
         dependency('gio-2.0'),
         dependency('gobject-2.0'),
-        dependency('granite', version: '>=6.0.0'),
-        dependency('gtk+-3.0'),
+        dependency('granite-7', version: '>=7.7.0'),
+        dependency('gtk4'),
+        dependency('gtk4-wayland'),
+        dependency('gtk4-x11'),
         dependency('libpulse'),
         dependency('libpulse-mainloop-glib'),
         dependency('libnotify'),
         dependency('libcanberra'),
-        dependency('libcanberra-gtk3'),
         meson.get_compiler('vala').find_library('libpulse-ext', dirs: join_paths(meson.source_root(), 'vapi')),
         wingpanel_dep
     ],
@@ -78,4 +82,6 @@ shared_module(
 subdir('data')
 subdir('po')
 
-meson.add_install_script('meson/post_install.py')
+gnome.post_install(
+    glib_compile_schemas: true
+)

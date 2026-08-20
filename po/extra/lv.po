@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: extra\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-10-19 19:46+0000\n"
+"POT-Creation-Date: 2026-01-22 17:26+0000\n"
 "PO-Revision-Date: 2019-11-07 11:39-0800\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -18,89 +18,78 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n != 0 ? 1 : "
 "2);\n"
 
-#: data/sound.appdata.xml.in:6
+#: data/sound.metainfo.xml.in:11
 msgid "Sound Indicator"
 msgstr ""
 
-#: data/sound.appdata.xml.in:7
+#: data/sound.metainfo.xml.in:12
 msgid ""
 "Adjust speaker and microphone volume or see Now Playing information and "
 "media controls"
 msgstr ""
 
-#: data/sound.appdata.xml.in:12 data/sound.appdata.xml.in:25
-#: data/sound.appdata.xml.in:38 data/sound.appdata.xml.in:49
-#: data/sound.appdata.xml.in:58
+#: data/sound.metainfo.xml.in:36 data/sound.metainfo.xml.in:48
+#: data/sound.metainfo.xml.in:61 data/sound.metainfo.xml.in:73
+#: data/sound.metainfo.xml.in:88 data/sound.metainfo.xml.in:103
+#: data/sound.metainfo.xml.in:116 data/sound.metainfo.xml.in:130
 msgid "Minor updates"
 msgstr ""
 
-#: data/sound.appdata.xml.in:14
-msgid "Use device form factor when available to assign more accurate icons"
-msgstr ""
-
-#: data/sound.appdata.xml.in:15
-msgid "Provide a fallback device icon when none is available"
-msgstr ""
-
-#: data/sound.appdata.xml.in:16
-msgid "Fix missing switch animations"
-msgstr ""
-
-#: data/sound.appdata.xml.in:17
-msgid "Use the volume step value from GNOME Settings Daemon"
-msgstr ""
-
-#: data/sound.appdata.xml.in:18 data/sound.appdata.xml.in:28
-#: data/sound.appdata.xml.in:43 data/sound.appdata.xml.in:52
-#: data/sound.appdata.xml.in:61 data/sound.appdata.xml.in:68
-#: data/sound.appdata.xml.in:75 data/sound.appdata.xml.in:80
+#: data/sound.metainfo.xml.in:38 data/sound.metainfo.xml.in:51
+#: data/sound.metainfo.xml.in:63 data/sound.metainfo.xml.in:75
+#: data/sound.metainfo.xml.in:92 data/sound.metainfo.xml.in:109
+#: data/sound.metainfo.xml.in:119 data/sound.metainfo.xml.in:135
 msgid "Updated translations"
 msgstr ""
 
-#: data/sound.appdata.xml.in:27
+#: data/sound.metainfo.xml.in:50
+msgid "Use a toggle button for muting devices instead of a switch"
+msgstr ""
+
+#: data/sound.metainfo.xml.in:90
+msgid "Use circle buttons for playback controls"
+msgstr ""
+
+#: data/sound.metainfo.xml.in:91
+msgid "Middle-clicking the microphone indicator no longer mutes monitors"
+msgstr ""
+
+#: data/sound.metainfo.xml.in:105
+msgid "Use device form factor when available to assign more accurate icons"
+msgstr ""
+
+#: data/sound.metainfo.xml.in:106
+msgid "Provide a fallback device icon when none is available"
+msgstr ""
+
+#: data/sound.metainfo.xml.in:107
+msgid "Fix missing switch animations"
+msgstr ""
+
+#: data/sound.metainfo.xml.in:108
+msgid "Use the volume step value from GNOME Settings Daemon"
+msgstr ""
+
+#: data/sound.metainfo.xml.in:118
 msgid "Show more specific icons for different types of devices"
 msgstr ""
 
-#: data/sound.appdata.xml.in:34
+#: data/sound.metainfo.xml.in:126
 msgid "New features"
 msgstr ""
 
-#: data/sound.appdata.xml.in:36
+#: data/sound.metainfo.xml.in:128
 msgid "select specific input and output devices"
 msgstr ""
 
-#: data/sound.appdata.xml.in:40
+#: data/sound.metainfo.xml.in:132
 msgid "Hide temporary audio players when they stop"
 msgstr ""
 
-#: data/sound.appdata.xml.in:41
+#: data/sound.metainfo.xml.in:133
 msgid "Add a tooltip on hover"
 msgstr ""
 
-#: data/sound.appdata.xml.in:42
+#: data/sound.metainfo.xml.in:134
 msgid "Minor visual improvements"
-msgstr ""
-
-#: data/sound.appdata.xml.in:51
-msgid "Fix duplicate default player"
-msgstr ""
-
-#: data/sound.appdata.xml.in:60
-msgid "Fix opacity flash during icon animation"
-msgstr ""
-
-#: data/sound.appdata.xml.in:67
-msgid "Update default music player when changed"
-msgstr ""
-
-#: data/sound.appdata.xml.in:73
-msgid "Correctly show \"Unknown Artist\" when artist info isn't available"
-msgstr ""
-
-#: data/sound.appdata.xml.in:74
-msgid "Performance improvements"
-msgstr ""
-
-#: data/sound.appdata.xml.in:89
-msgid "elementary, Inc."
 msgstr ""

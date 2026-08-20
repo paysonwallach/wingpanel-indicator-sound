@@ -1,96 +1,82 @@
 /*
-* Copyright 2015-2021 elementary, Inc. (https://elementary.io)
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public
-* License as published by the Free Software Foundation; either
-* version 2 of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+* SPDX-License-Identifier: GPL-2.0-or-later
+* SPDX-FileCopyrightText: 2015-2025 elementary, Inc. (https://elementary.io)
 */
 
-public class Sound.Widgets.Scale : Gtk.EventBox {
-    public string icon { get; set; }
-    public bool active { get; construct set; }
-    public double max { get; construct; }
-    public double min { get; construct; }
-    public double step { get; construct; }
-    public Gtk.Scale scale_widget { get; private set; }
-    public Gtk.Switch switch_widget { get; private set; }
+public class Sound.Widgets.Scale : Granite.Bin {
+    // HACK: Using Gdk.ScrollEvent instead of Value as the type of the parameter
+    // resulsts build error with valac 0.56.18
+    // See https://gitlab.gnome.org/GNOME/vala/-/work_items/1671
+    public signal void scroll_event (Value event_value);
+    public signal void slider_dropped ();
 
-    public Scale (string icon, bool active = false, double min, double max, double step) {
-        Object (
-            active: active,
-            icon: icon,
-            max: max,
-            min: min,
-            step: step
-        );
+    public Gtk.Adjustment adjustment { get; construct; }
+    public string icon { get; set; }
+
+    public bool active { get; set; default = true; }
+
+    public Scale (Gtk.Adjustment adjustment) {
+        Object (adjustment: adjustment);
     }
 
     class construct {
-        set_css_name (Gtk.STYLE_CLASS_MENUITEM);
+        set_css_name ("device-scale");
     }
 
     construct {
-        var image = new Gtk.Image.from_icon_name (icon, Gtk.IconSize.DIALOG) {
-            pixel_size = 48
-        };
+        var toggle = new Gtk.ToggleButton ();
 
-        var image_box = new Gtk.EventBox ();
-        image_box.add (image);
-
-        scale_widget = new Gtk.Scale.with_range (Gtk.Orientation.HORIZONTAL, min, max, step) {
+        var scale_widget = new Gtk.Scale (HORIZONTAL, adjustment) {
             draw_value = false,
             hexpand = true,
             width_request = 175
         };
 
-        switch_widget = new Gtk.Switch () {
-            margin_start = 6,
-            valign = Gtk.Align.CENTER
-        };
-
-        var box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 6) {
+        var box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 12) {
             hexpand = true,
+            margin_top = 6,
             margin_start = 6,
+            margin_bottom = 6,
             margin_end = 12
         };
-        box.add (image_box);
-        box.add (scale_widget);
-        box.add (switch_widget);
+        box.append (toggle);
+        box.append (scale_widget);
 
-        add (box);
-        add_events (Gdk.EventMask.SMOOTH_SCROLL_MASK);
-        above_child = false;
+        child = box;
 
-        image_box.add_events (Gdk.EventMask.BUTTON_RELEASE_MASK);
-        image_box.button_release_event.connect (() => {
-            switch_widget.activate ();
+        var gesture_click = new Gtk.GestureClick ();
+        gesture_click.released.connect (() => {
+            slider_dropped ();
+        });
+
+        var scroll_controller = new Gtk.EventControllerLegacy ();
+        scroll_controller.event.connect_after ((e) => {
+            if (e.get_event_type () != Gdk.EventType.SCROLL) {
+                return Gdk.EVENT_PROPAGATE;
+            }
+
+            var event_value = Value (typeof (Gdk.ScrollEvent));
+            event_value.set_instance (e);
+            scroll_event (event_value);
+
             return Gdk.EVENT_STOP;
         });
 
-        scale_widget.scroll_event.connect ((e) => {
-            /* Re-emit the signal on the eventbox instead of using native handler */
-            scroll_event (e);
-            return Gdk.EVENT_STOP;
-        });
+        scale_widget.add_controller (gesture_click);
+        scale_widget.add_controller (scroll_controller);
 
-        bind_property ("icon", image, "icon-name");
+        bind_property ("icon", toggle, "icon-name");
 
         bind_property ("active", scale_widget, "sensitive", BindingFlags.SYNC_CREATE);
-        bind_property ("active", image, "sensitive", BindingFlags.SYNC_CREATE);
-
-        bind_property ("active", switch_widget, "active", BindingFlags.BIDIRECTIONAL, () => {
-            if (switch_widget.active != active) {
-                switch_widget.activate ();
+        bind_property ("active", toggle, "active", BIDIRECTIONAL | SYNC_CREATE);
+        bind_property ("active", toggle, "tooltip-text", SYNC_CREATE, (binding, srcval, ref targetval) => {
+            if ((bool) srcval) {
+                targetval.set_string (_("Mute"));
+            } else {
+                targetval.set_string (_("Unmute"));
             }
+
+            return true;
         }, null);
     }
 }
